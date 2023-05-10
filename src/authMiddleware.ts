@@ -2,23 +2,34 @@ import { Request, Response, NextFunction } from 'express';
 import { RequestWithUser } from './types';
 import admin from './firebase';
 
-async function authMiddleware(req: RequestWithUser, res: Response, next: NextFunction) {
-  const authHeader = req.header('Authorization');
+const authenticate = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    const token = req.header('Authorization')?.split('Bearer ')[1];
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).send('Unauthorized');
-  }
-
-  const idToken = authHeader.split('Bearer ')[1];
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.log('Error verifying token:', error);
-    res.status(401).send('Unauthorized');
-  }
+    if (!token) {
+      return res.status(401).send('Unauthorized');
+    }
+  
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = decodedToken;
+      next();
+    } catch (error) {
+      res.status(401).send('Unauthorized');
+    }
 }
 
-export default authMiddleware;
+export const protectEndpoints = (skipEndpoints: string[], middleware = authenticate) => {
+    const skippedEndpoints = new Set(skipEndpoints);
+  
+    return (req: Request, res: Response, next: NextFunction) => {
+      const currentEndpoint = `${req.method}:${req.baseUrl}${req.path}`;
+  
+      if (skippedEndpoints.has(currentEndpoint)) {
+        return next();
+      }
+  
+      return middleware(req, res, next);
+    };
+  };
+
+  
