@@ -13,7 +13,7 @@ paths:
       responses:
         '200':
           description: API is healthy.
-   /api/room:
+  /api/room:
     get:
       summary: Retrieve Chat Room
       description: Retrieves a chat room for the current user.
@@ -30,38 +30,78 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    description: The room's ID.
-                  botId:
-                    type: string
-                    description: The ID of the bot in the room.
-                  participantIds:
-                    type: array
-                    items:
-                      type: string
-                    description: A list of participant user IDs.
-                  createdAt:
-                    type: string
-                    format: date-time
-                    description: The timestamp when the room was created.
-                  messages:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          description: The message's ID.
-                        userId:
-                          type: string
-                          description: The ID of the user who sent the message.
-                        text:
-                          type: string
-                          description: The message text.
-                        createdAt:
-                          type: string
-                          format: date-time
-                          description: The timestamp when the message was created.
+                $ref: '#/components/schemas/Room'
+        '500':
+          description: Internal Server Error.
+    /api/room/{roomId}/message:
+      post:
+        summary: Send Message
+        description: Sends a new message to a room.
+        parameters:
+          - in: path
+            name: roomId
+            schema:
+              type: string
+            required: true
+            description: The ID of the room.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        responses:
+          '200':
+            description: Message sent successfully.
+            content:
+              application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          '401':
+            description: Unauthorized for access to this room.
+          '500':
+            description: Internal Server Error.
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The message's ID.
+        userId:
+          type: string
+          description: The ID of the user who sent the message.
+        text:
+          type: string
+          description: The message text.
+        createdAt:
+          type: string
+          format: date-time
+          description: The timestamp when the message was created.
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The room's ID.
+        ownerId:
+          type: string
+          description: The ID of the user who owns the room.
+        botId:
+          type: string
+          description: The ID of the bot in the room.
+        participantIds:
+          type: array
+          items:
+            type: string
+          description: A list of participant user IDs.
+        createdAt:
+          type: string
+          format: date-time
+          description: The timestamp when the room was created.
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          description: A list of messages in the room.

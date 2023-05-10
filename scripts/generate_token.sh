@@ -22,4 +22,4 @@ ID_TOKEN=$(curl -s -X POST -H "Content-Type: application/json" \
   | jq -r '.idToken')
 
 # Print the ID token
-echo "ID Token: $ID_TOKEN"
+echo "Bearer $ID_TOKEN"
