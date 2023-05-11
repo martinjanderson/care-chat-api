@@ -1,5 +1,6 @@
 import admin from './firebase';
 import { Room, Message } from './models';
+import { getWelcomeMessage } from './botService';
 
 const db = admin.firestore();
 
@@ -15,10 +16,7 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
     const room: Room = doc.data() as Room
     room.id = doc.id;
       
-    const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(messageLimit).get();
-    room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
-
-    return room;
+    return loadRoomMessages(room);
   } else {
     const botId = 'CareBot v0.0.1'; // TODO: Replace with bot management service
 
@@ -30,10 +28,11 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
       messages: [],
     };
     
-    const docRef = await roomsCollection.add(room);
-    room.id = docRef.id;
+    const roomRef = await roomsCollection.add(room);
+    room.id = roomRef.id;
+    roomRef.collection('messages').add(getWelcomeMessage());
 
-    return room;
+    return loadRoomMessages(room);
   }
 };
 
@@ -65,11 +64,16 @@ export const addMessageToRoom = async (roomId: string, userId: string, text: str
     room.lastClientMessage = message;
 
     // TODO: Duplicate, need to consolidate room fetching
-    const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(50).get();
-    room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
-
-    return room;
+    return await loadRoomMessages(room);
   }
+}
+
+// Function to get all messages from the room collection specified by Room object and hydrate the Room.messages array
+export const loadRoomMessages = async (room: Room): Promise<Room | null> => {
+  if(room.id === undefined){ throw new Error("Room id is undefined"); }
+  const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(50).get();
+  room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
+  return room;
 }
 
 // New error class for Unauthorized errors
