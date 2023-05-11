@@ -11,21 +11,25 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
   
   if (!snapshot.empty) {
     // Room exists
-    const room = snapshot.docs[0].data() as Room;
-    room.messages = room.messages.slice(0, messageLimit); // TODO: Performance?
+    const doc = snapshot.docs[0];
+    const room: Room = doc.data() as Room
+    room.id = doc.id;
+      
+    const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(messageLimit).get();
+    room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
+
     return room;
   } else {
     const botId = 'CareBot v0.0.1'; // TODO: Replace with bot management service
-    // Create new room
+
     const room: Room = {
-      id: '',
       ownerId: ownerId,
-      botId: botId, 
-      participantIds: [ownerId, botId],
+      botId: botId,
+      participantIds: [],
       createdAt: new Date(),
       messages: [],
     };
-
+    
     const docRef = await roomsCollection.add(room);
     room.id = docRef.id;
 
@@ -33,7 +37,7 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
   }
 };
 
-export const addMessageToRoom = async (roomId: string, userId: string, text: string): Promise<Message | null> => {
+export const addMessageToRoom = async (roomId: string, userId: string, text: string): Promise<Room | null> => {
   const roomsCollection = db.collection('rooms');
 
   // Check if room exists for the owner
@@ -49,8 +53,8 @@ export const addMessageToRoom = async (roomId: string, userId: string, text: str
     }
 
     const room = snapshot.data() as Room;
-    const message = {
-      id: '',
+    room.id = snapshot.id;
+    const message: Message = {
       userId: userId,
       text: text,
       createdAt: new Date(),
@@ -58,9 +62,13 @@ export const addMessageToRoom = async (roomId: string, userId: string, text: str
 
     const docRef = await roomsCollection.doc(roomId).collection('messages').add(message);
     message.id = docRef.id;
-    room.messages.push(message);
+    room.lastClientMessage = message;
 
-    return message;
+    // TODO: Duplicate, need to consolidate room fetching
+    const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(50).get();
+    room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
+
+    return room;
   }
 }
 

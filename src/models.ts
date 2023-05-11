@@ -1,15 +1,16 @@
 export interface Message {
-  id: string;
+  id?: string;
   userId: string;
   text: string;
   createdAt: Date;
 }
 
 export interface Room {
-  id: string;
+  id?: string;
   ownerId: string;
   botId: string;
   participantIds: string[];
   createdAt: Date;
   messages: Message[];
+  lastClientMessage?: Message;
 }
