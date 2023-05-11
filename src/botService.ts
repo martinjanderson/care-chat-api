@@ -56,7 +56,7 @@ export const botResponse = async (prompt: string): Promise<Message | null> => {
       prompt: prompt,
       max_tokens: 120,
       temperature: 0.7,
-      stop: ["END", "\n", "Client"]
+      stop: ["END", "Client"]
     });
 
     console.log("Bot response data:");
