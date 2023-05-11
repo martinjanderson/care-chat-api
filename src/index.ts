@@ -58,7 +58,7 @@ app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Respons
       return;
     }
     
-    botService(room, room.lastClientMessage); // Let this run in the background TODO: Add a job queuee
+    botService(room); // Let this run in the background TODO: Add a job queuee
     res.json(room.lastClientMessage);
     
   } catch (error) {

@@ -13,7 +13,7 @@ const openai = new OpenAIApi(configuration);
 
 export const botId = 'CareBot v0.0.1'; // TODO: Replace with a better versioning system
 
-export const botService = async (room: Room, message: Message): Promise<Message | null> => {
+export const botService = async (room: Room): Promise<Message | null> => {
   console.log("Asking bot for response...");
   if(!room.id){
     throw new Error("Room id is undefined");
@@ -56,17 +56,13 @@ export const botResponse = async (prompt: string): Promise<Message | null> => {
       prompt: prompt,
       max_tokens: 120,
       temperature: 0.7,
-      stop: ["END", "\n", "Client:"]
+      stop: ["END", "\n", "Client"]
     });
 
     console.log("Bot response data:");
     console.log(completion.data);
 
-    const message: Message = {
-      userId: botId, // this is the model version
-      text: completion.data.choices[0].text.trim(),
-      createdAt: new Date(),
-    };
+    const message = newBotMessage(completion.data.choices[0].text.trim());
 
     return message;
   } catch (error) {
@@ -76,10 +72,24 @@ export const botResponse = async (prompt: string): Promise<Message | null> => {
   return null;
 };
 
+function newBotMessage(text: string): Message {
+  return {
+    userId: botId,
+    text: text,
+    createdAt: new Date(),
+  };
+}
+
+// An exported non async function that returns a default welcome message string
+export function getWelcomeMessage(): Message {
+  return newBotMessage("Hello, I'm a bot trained in reflective listening. What can I help you with?");
+}
+
+
 // Define a function that iterates over the messsages in a room and adds them to a String the function is not async
-function getRoomScript(room: Room) {
+function getRoomScript(room: Room): string {
   const initPrompt = `
-Counselor: Hello, I'm a counselor. What can I help you with?
+Counselor: Hello, I'm a bot trained in reflective listening. What can I help you with?
 Client: Hello, I'm looking for some help with my stress.
 Counselor: I see what is causing your stress?
 Client: `
