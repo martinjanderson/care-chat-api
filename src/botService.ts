@@ -13,7 +13,7 @@ const openai = new OpenAIApi(configuration);
 
 export const botId = 'CareBot v0.0.1'; // TODO: Replace with a better versioning system
 
-export const botService = async (room: Room): Promise<Message | null> => {
+export const botService = async (room: Room): Promise<Room | null> => {
   console.log("Asking bot for response...");
   if(!room.id){
     throw new Error("Room id is undefined");
@@ -37,9 +37,13 @@ export const botService = async (room: Room): Promise<Message | null> => {
       // Add the bot response as a new message in the room
       const roomsCollection = db.collection('rooms');
       const roomRef = roomsCollection.doc(roomId);
+      const doc = await roomRef.get();
+      const room: Room = doc.data() as Room
+      room.id = doc.id;
       await roomRef.collection('messages').add(response);
-      response.id = roomRef.id;
-      return response;
+      const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(50).get();
+      room.messages = messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[];
+      return room;
     }
   } catch (error) {
     console.log(error);
