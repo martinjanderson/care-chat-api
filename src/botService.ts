@@ -54,8 +54,8 @@ export const botResponse = async (prompt: string): Promise<Message | null> => {
     const completion = await openai.createCompletion({
       model: "davinci:ft-martin-anderson-personal-2023-04-28-17-55-38",
       prompt: prompt,
-      max_tokens: 120,
-      temperature: 0.7,
+      max_tokens: 256,
+      temperature: 0.5,
       stop: ["END", "Client"]
     });
 
