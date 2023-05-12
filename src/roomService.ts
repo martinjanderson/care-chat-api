@@ -60,8 +60,13 @@ export const addMessageToRoom = async (roomId: string, userId: string, text: str
     };
 
     const docRef = await roomsCollection.doc(roomId).collection('messages').add(message);
-    message.id = docRef.id;
-    room.lastClientMessage = message;
+    // Fetch the document again to get the most recent representation
+    const docSnapshot = await docRef.get();
+    const updatedMessage = docSnapshot.data() as Message;
+    updatedMessage.id = docSnapshot.id;
+
+    // Update the room's lastClientMessage with the updatedMessage
+    room.lastClientMessage = updatedMessage;
 
     // TODO: Duplicate, need to consolidate room fetching
     return await loadRoomMessages(room);
