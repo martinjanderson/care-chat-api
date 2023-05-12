@@ -1,27 +1,78 @@
 
 import express, { Request, Response } from 'express';
-
+import http from 'http';
 import { protectEndpoints } from './authMiddleware';
 import { RequestWithUser } from './types';
 import { getOrCreateRoom, addMessageToRoom, UnauthorizedError } from './roomService';
 import morgan from 'morgan';
 import cors from 'cors';
 import { botService } from './botService';
-
+import { Server as IoServer, Socket } from 'socket.io';
+import admin from './firebase';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const port = 3000;
-
 app.use(morgan('combined'));
 app.use(protectEndpoints(['GET:/healthcheck']));
 
-// Configuration for a Firebase Firestore connection
-const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
-const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
+const port = 3000;
+const httpServer = http.createServer(app);
+const io = new IoServer(httpServer);
 
-const db = getFirestore();
+const userSockets: Record<string, Socket> = {};
+
+io.on('connection', (socket: Socket) => {
+  console.log('User connection attempt...');
+  socket.on('authenticate', async (data) => {
+    const { token } = data;
+
+    // Do your authentication logic here
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      // If successful, store the authenticated user on the socket
+      (socket as any).user = decodedToken;
+      userSockets[decodedToken.uid] = socket;
+    } catch (error) {
+      // If authentication fails, disconnect the socket
+      console.error('Authentication error', error);
+      socket.disconnect();
+    }
+  });
+
+  socket.on('disconnect', () => {
+    // Remove this user's socket from the map
+    const user = (socket as any).user;
+    if (user) {
+      delete userSockets[user.uid];
+    }
+    console.log('A user disconnected');
+  });
+});
+
+// io.use(async (socket: Socket, next) => {
+//   if (socket.handshake.query && socket.handshake.query.token){
+//     let token = socket.handshake.query.token;
+//     if (Array.isArray(token)) {
+//       token = token[0];
+//     }
+//     try {
+//       const decodedToken = await admin.auth().verifyIdToken(token);
+//       // Attach the user information to the socket object for use later
+//       (socket as any).user = decodedToken;
+//       console.log("User connected: ", decodedToken.uid);
+//       userSockets[decodedToken.uid] = socket;
+//       next();
+//     } catch (error) {
+//       console.log('Connection unauthenticated.');
+//       next(new Error('Authentication error'));
+//     }
+//   }
+//   else {
+//     console.log('Connection unauthenticated.');
+//     next(new Error('Authentication error'));    
+//   }    
+// });
 
 // An endpoint that returns server status
 app.get('/healthcheck', (req, res) => {
@@ -58,7 +109,12 @@ app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Respons
       return;
     }
     
-    botService(room); // Let this run in the background TODO: Add a job queuee
+    botService(room).then((room) => {
+      const userSocket = userSockets[userId];
+      if (userSocket) {
+        userSocket.emit('room', room);
+      }
+    });
     res.json(room.lastClientMessage);
     
   } catch (error) {
@@ -73,9 +129,10 @@ app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Respons
   
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port: ${port}`);
+httpServer.listen(port, () => {
+  console.log(`Server is listening on port: ${port}`);
 });
+
 
 
 export default app;
