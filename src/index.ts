@@ -50,29 +50,6 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
-// io.use(async (socket: Socket, next) => {
-//   if (socket.handshake.query && socket.handshake.query.token){
-//     let token = socket.handshake.query.token;
-//     if (Array.isArray(token)) {
-//       token = token[0];
-//     }
-//     try {
-//       const decodedToken = await admin.auth().verifyIdToken(token);
-//       // Attach the user information to the socket object for use later
-//       (socket as any).user = decodedToken;
-//       console.log("User connected: ", decodedToken.uid);
-//       userSockets[decodedToken.uid] = socket;
-//       next();
-//     } catch (error) {
-//       console.log('Connection unauthenticated.');
-//       next(new Error('Authentication error'));
-//     }
-//   }
-//   else {
-//     console.log('Connection unauthenticated.');
-//     next(new Error('Authentication error'));    
-//   }    
-// });
 
 // An endpoint that returns server status
 app.get('/healthcheck', (req, res) => {
