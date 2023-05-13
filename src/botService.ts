@@ -20,7 +20,7 @@ export const botService = async (room: Room): Promise<Room | null> => {
   }
   const roomId = room.id!;
   try {
-    const basePrompt = "The following is a conversation with an AI counsler. The counselor is trained to listen to the client, reflect and ask open questions.\n\n";
+    const basePrompt = "The following is a conversation with a counselor with a background in psychology. The counselor is empethetic, curious, and can reflect and ask open questions.\n\n";
     
     const contextPrompt = getRoomScript(room);
     const endPrompt = "\nCounselor:"
@@ -95,13 +95,8 @@ function getRoomScript(room: Room): string {
   const initPrompt = `
 Counselor: Hello, I'm a bot trained in reflective listening. What can I help you with?
 Client: Hello, I'm looking for some help with my stress.
-Counselor: I see what is causing your stress?
-Client: `
-  // if the room has less than three messages, return the initPrompt
-  if (room.messages.length < 3) {
-    return initPrompt;
-  }
-
+Counselor: I see, what is causing your stress?`
+  
   let lastTwenty = room.messages;
   // if the room has more than 20 messages, return the last 20 messages
   if (room.messages.length > 20) {
@@ -122,6 +117,6 @@ Client: `
     messageTextPrefixed.pop();
   }
   
-  const text = messageTextPrefixed.join("\n");
+  const text = initPrompt + '\n' + messageTextPrefixed.join("\n");
   return text;
 }
