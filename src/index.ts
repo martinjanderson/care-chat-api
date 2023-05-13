@@ -7,6 +7,7 @@ import { getOrCreateRoom, addMessageToRoom, UnauthorizedError } from './roomServ
 import morgan from 'morgan';
 import cors from 'cors';
 import { botService } from './botService';
+import { commandService, getCommand } from './commandService';
 import { Server as IoServer, Socket } from 'socket.io';
 import admin from './firebase';
 
@@ -70,12 +71,33 @@ app.get('/api/room', async (req: RequestWithUser, res: Response) => {
   }
 });
 
+// An /api/room/:roomId/command endpoint for sending commands instead of messages
+app.post('/api/room/:roomId/command', async (req: RequestWithUser, res: Response) => {
+  const ownerId = req.user!.uid;
+  
+  if (!getCommand(req.body.text)) {
+    res.status(400).send('Invalid command');
+    return;
+  }
+
+  try {
+    let room = await getOrCreateRoom(ownerId, 50);
+    if(room) {
+      room = await commandService(room, req.body.text);
+    }
+    res.json(room);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Internal server error');
+  }
+
+});
+
 // An /api/room/:roomId/messages endpoint based on openapi.yaml
 app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Response) => {
   const roomId = req.params.roomId;
   const userId = req.user!.uid; // Assuming you have already setup Firebase authentication and `req.user` contains the authenticated user.
   try {
-
     const room = await addMessageToRoom(roomId, userId, req.body.text);
     if (!room) {
       res.status(404).send('Room not found');
@@ -102,8 +124,6 @@ app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Respons
       res.status(500).send('Internal server error');
     }
   }
-
-  
 });
 
 httpServer.listen(port, () => {
