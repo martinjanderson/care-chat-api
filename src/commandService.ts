@@ -1,6 +1,7 @@
 import admin from './firebase';
 import { Room, Message } from './models';
-import { getRoomScript } from './botService';
+import { getMessageScriptArray } from './botService';
+import { loadRoomMessages } from './roomService';
 
 const db = admin.firestore();
 
@@ -13,8 +14,10 @@ export const getCommand = (text: string): string | null => {
         command = command.replace('/', '');
     }
 
-    if (command !== 'reset' && command !== 'clear') {
-        command = null;
+    // Only allow from a list of valid commands
+    const validCommands = ['reset', 'clear', 'script'];
+    if (command == null || !validCommands.includes(command)) {
+      command = null;
     }
 
     return command;
@@ -36,17 +39,21 @@ export const reset = async (room: Room): Promise<Room> => {
 // A function to add a new command-response message to the room 
 // The message should have a userId of "command-response" and a text of all the messages in the room using getRoomScript
 // Return the room
-export const getScript = async (room: Room): Promise<Room> => {
+export const getScript = async (room: Room): Promise<Room | null> => {
   if(!room.id) { throw new Error('Cannot find room'); }
   const roomRef = db.collection('rooms').doc(room.id);
   const message: Message = {
     userId: 'command-response',
-    text: getRoomScript(room),
+    text: getMessageScriptArray(room.conversationMessages()).join("\n"),
     createdAt: new Date(),
   };
-  await roomRef.collection('messages').add(message);
-  room.messages.push(message);
-  return room;
+  const docRef = await roomRef.collection('messages').add(message);
+  // Fetch the document again to get the most recent representation
+  const docSnapshot = await docRef.get();
+  const updatedMessage = docSnapshot.data() as Message;
+  updatedMessage.id = docSnapshot.id;
+
+  return await loadRoomMessages(room);
 };
 
 

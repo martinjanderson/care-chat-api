@@ -1,5 +1,5 @@
 import admin from './firebase';
-import { Room, Message } from './models';
+import { IRoom, Room, Message } from './models';
 const { Configuration, OpenAIApi } = require("openai");
 require('dotenv').config();
 
@@ -38,7 +38,7 @@ export const botService = async (room: Room): Promise<Room | null> => {
       const roomsCollection = db.collection('rooms');
       const roomRef = roomsCollection.doc(roomId);
       const doc = await roomRef.get();
-      const room: Room = doc.data() as Room
+      const room = new Room(doc.data() as IRoom);
       room.id = doc.id;
       await roomRef.collection('messages').add(response);
       const messagesSnapshot = await db.collection('rooms').doc(room.id).collection('messages').orderBy('createdAt', 'desc').limit(50).get();
@@ -134,7 +134,7 @@ export function getRoomScript(room: Room): string {
   }
 
   // if the message is from the bot, add a Counselor: prefix
-  const messageTextPrefixed = getRoomScriptArray(lastTwenty);
+  const messageTextPrefixed = getMessageScriptArray(lastTwenty);
 
   // if the last messagesPrefixed is from the bot, remove it from the array
   if (messageTextPrefixed[messageTextPrefixed.length - 1].startsWith("Counselor:")) {
@@ -146,7 +146,7 @@ export function getRoomScript(room: Room): string {
 }
 
 // Define a function that accepts the room message history and returns that history as an array of prefixed messages
-export function getRoomScriptArray(messages: Message[]): string[] {
+export function getMessageScriptArray(messages: Message[]): string[] {
   const messageTextPrefixed = messages.reverse().map(message => {
     if (message.userId.startsWith("CareBot")) {
       return "Counselor: " + message.text;

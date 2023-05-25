@@ -1,5 +1,5 @@
 import admin from './firebase';
-import { Room, Message } from './models';
+import { IRoom, Room, Message } from './models';
 import { getWelcomeMessage } from './botService';
 
 const db = admin.firestore();
@@ -13,7 +13,8 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
   if (!snapshot.empty) {
     // Room exists
     const doc = snapshot.docs[0];
-    const room: Room = doc.data() as Room
+    // Instantiate room with doc.data()
+    const room = new Room(doc.data() as IRoom);
     room.id = doc.id;
       
     return loadRoomMessages(room);
@@ -52,7 +53,7 @@ export const addMessageToRoom = async (roomId: string, userId: string, text: str
       throw new UnauthorizedError();
     }
 
-    const room = snapshot.data() as Room;
+    const room = new Room(snapshot.data() as IRoom);
     room.id = snapshot.id;
     const message: Message = {
       userId: userId,

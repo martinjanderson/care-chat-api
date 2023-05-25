@@ -84,6 +84,10 @@ app.post('/api/room/:roomId/command', async (req: RequestWithUser, res: Response
     let room = await getOrCreateRoom(ownerId, 50);
     if(room) {
       room = await commandService(room, req.body.text);
+      const userSocket = userSockets[ownerId];
+      if (userSocket) {
+        userSocket.emit('room', room);
+      }
     }
     res.json(room);
   } catch (error) {
@@ -96,9 +100,9 @@ app.post('/api/room/:roomId/command', async (req: RequestWithUser, res: Response
 // An /api/room/:roomId/messages endpoint based on openapi.yaml
 app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Response) => {
   const roomId = req.params.roomId;
-  const userId = req.user!.uid; // Assuming you have already setup Firebase authentication and `req.user` contains the authenticated user.
+  const ownerId = req.user!.uid; // Assuming you have already setup Firebase authentication and `req.user` contains the authenticated user.
   try {
-    const room = await addMessageToRoom(roomId, userId, req.body.text);
+    const room = await addMessageToRoom(roomId, ownerId, req.body.text);
     if (!room) {
       res.status(404).send('Room not found');
       return;
@@ -109,7 +113,7 @@ app.post('/api/room/:roomId/messages', async (req: RequestWithUser, res: Respons
     }
     
     botService(room).then((room) => {
-      const userSocket = userSockets[userId];
+      const userSocket = userSockets[ownerId];
       if (userSocket) {
         userSocket.emit('room', room);
       }
