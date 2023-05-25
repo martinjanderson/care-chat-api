@@ -20,13 +20,14 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
   } else {
     const botId = 'CareBot v0.0.1'; // TODO: Replace with bot management service
 
-    const room: Room = {
+    // Create a new room when one does not exist
+    const room = new Room({
       ownerId: ownerId,
       botId: botId,
       participantIds: [],
       createdAt: new Date(),
       messages: [],
-    };
+    });
     
     const roomRef = await roomsCollection.add(room);
     room.id = roomRef.id;

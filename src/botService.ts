@@ -23,14 +23,14 @@ export const botService = async (room: Room): Promise<Room | null> => {
     const basePrompt = "The following is a conversation with a counselor with a background in psychology. The counselor is empethetic, curious, and can reflect and ask open questions.\n\n";
     
     const contextPrompt = getRoomScript(room);
-    const endPrompt = "\nCounselor:"
+    const endPrompt = "\nCounselor: \n\n###\n\n"
 
     const finalPrompt = basePrompt + contextPrompt + endPrompt;
     
     console.log("Final prompt:");
     console.log(finalPrompt);
     
-    const response = await botResponse(finalPrompt);
+    const response = await botResponse(finalPrompt, determineModelType(room));
     if (response) {
       console.log("Response received from bot:");
       console.log(response);
@@ -53,20 +53,30 @@ export const botService = async (room: Room): Promise<Room | null> => {
   return null;
 };
 
-export const botResponse = async (prompt: string): Promise<Message | null> => {
+export const botResponse = async (prompt: string, modelType: string): Promise<Message | null> => {
   try {
+    let model = 'davinci:ft-martin-anderson-personal-2023-04-28-17-55-38';
+    switch(modelType){
+      case 'reflections':
+        model = 'davinci:ft-martin-anderson-s-lab:reflections-2023-05-24-18-30-31';
+        break;
+      case 'questions':
+        model = 'davinci:ft-martin-anderson-s-lab:open-questions-2023-05-23-19-43-05';
+        break;
+    };
+
     const completion = await openai.createCompletion({
-      model: "davinci:ft-martin-anderson-personal-2023-04-28-17-55-38",
+      model: model,
       prompt: prompt,
       max_tokens: 256,
       temperature: 0.7,
-      stop: ["END", "Client"]
+      stop: ["END", "Client", "\n"]
     });
 
     console.log("Bot response data:");
     console.log(completion.data);
 
-    const message = newBotMessage(completion.data.choices[0].text.trim());
+    const message = newBotMessage(completion.data.choices[0].text.trim(), modelType);
 
     return message;
   } catch (error) {
@@ -76,47 +86,73 @@ export const botResponse = async (prompt: string): Promise<Message | null> => {
   return null;
 };
 
-function newBotMessage(text: string): Message {
+// A simple OARS algorithm to determine the model type based on the room message history
+function determineModelType(room: Room): string {
+  // If there are less than three messages, the bot should respond with a reflection
+  if(room.conversationMessages().length < 3){
+    return 'reflections';
+  }
+  // Get the last three messages in the room, only those sent by the bot, messages are ordered desc
+  const lastThreeMessages: Message[] = room.conversationMessages().filter(message => message.userId.startsWith("CareBot")).slice(0, 3);
+  console.log("Last three counselor messages:");
+  console.log(lastThreeMessages);
+  // If the messages are reflections, or are messing a meta.type, the bot should respond with a question
+  if(lastThreeMessages.every(message => message.meta?.type === 'reflections')){
+    return 'questions';
+  }
+  
+  // Othewrise continue with reflections
+  return 'reflections';
+}
+
+function newBotMessage(text: string, modelType: string): Message {
   return {
     userId: botId,
     text: text,
     createdAt: new Date(),
+    meta: {
+      type: modelType
+    }
   };
 }
 
 // An exported non async function that returns a default welcome message string
 export function getWelcomeMessage(): Message {
-  return newBotMessage("Hello, I'm a bot trained in reflective listening. What can I help you with?");
+  return newBotMessage("Hello, I'm a bot trained in reflective listening. What can I help you with?", 'questions');
 }
 
 
 // Define a function that iterates over the messsages in a room and adds them to a String the function is not async
-function getRoomScript(room: Room): string {
-  const initPrompt = `
-Counselor: Hello, I'm a bot trained in reflective listening. What can I help you with?
-Client: Hello, I'm looking for some help with my stress.
-Counselor: I see, what is causing your stress?`
+export function getRoomScript(room: Room): string {
+  let initPrompt = "Counselor: Hello, I'm a bot trained in reflective listening. What can I help you with?\n"
   
-  let lastTwenty = room.messages;
+  let lastTwenty = room.conversationMessages();
   // if the room has more than 20 messages, return the last 20 messages
-  if (room.messages.length > 20) {
-    lastTwenty = room.messages.slice(0, 20);
+  if (room.conversationMessages().length > 20) {
+    lastTwenty = room.conversationMessages().slice(0, 20);
+    initPrompt = "";
   }
 
   // if the message is from the bot, add a Counselor: prefix
-  const messageTextPrefixed = lastTwenty.reverse().map(message => {
-    if (message.userId.startsWith("CareBot")) {
-      return "Counselor: " + message.text;
-    } else {
-      return "Client: " + message.text;
-    }
-  });
+  const messageTextPrefixed = getRoomScriptArray(lastTwenty);
 
   // if the last messagesPrefixed is from the bot, remove it from the array
   if (messageTextPrefixed[messageTextPrefixed.length - 1].startsWith("Counselor:")) {
     messageTextPrefixed.pop();
   }
   
-  const text = initPrompt + '\n' + messageTextPrefixed.join("\n");
+  const text = initPrompt + messageTextPrefixed.join("\n");
   return text;
+}
+
+// Define a function that accepts the room message history and returns that history as an array of prefixed messages
+export function getRoomScriptArray(messages: Message[]): string[] {
+  const messageTextPrefixed = messages.reverse().map(message => {
+    if (message.userId.startsWith("CareBot")) {
+      return "Counselor: " + message.text;
+    } else {
+      return "Client: " + message.text;
+    }
+  });
+  return messageTextPrefixed;
 }

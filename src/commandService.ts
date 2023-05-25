@@ -1,5 +1,6 @@
 import admin from './firebase';
-import { Room } from './models';
+import { Room, Message } from './models';
+import { getRoomScript } from './botService';
 
 const db = admin.firestore();
 
@@ -32,6 +33,22 @@ export const reset = async (room: Room): Promise<Room> => {
   return room;
 };
 
+// A function to add a new command-response message to the room 
+// The message should have a userId of "command-response" and a text of all the messages in the room using getRoomScript
+// Return the room
+export const getScript = async (room: Room): Promise<Room> => {
+  if(!room.id) { throw new Error('Cannot find room'); }
+  const roomRef = db.collection('rooms').doc(room.id);
+  const message: Message = {
+    userId: 'command-response',
+    text: getRoomScript(room),
+    createdAt: new Date(),
+  };
+  await roomRef.collection('messages').add(message);
+  room.messages.push(message);
+  return room;
+};
+
 
 export const commandService = async (room: Room, text: string): Promise<Room | null> => {
     const command = getCommand(text);
@@ -39,6 +56,8 @@ export const commandService = async (room: Room, text: string): Promise<Room | n
       case 'reset':
       case 'clear':
         return await reset(room);
+      case 'script':
+        return await getScript(room);
       default:
         console.log(`Command ${command} not found`);
         return null;
