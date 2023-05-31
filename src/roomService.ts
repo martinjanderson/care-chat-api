@@ -3,6 +3,7 @@ import { IRoom, Room, Message } from './models';
 import { getWelcomeMessage } from './botService';
 
 const db = admin.firestore();
+db.settings({ ignoreUndefinedProperties: true });
 
 export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Promise<Room | null> => {
   const roomsCollection = db.collection('rooms');
@@ -30,7 +31,7 @@ export const getOrCreateRoom = async (ownerId: string, messageLimit: number): Pr
       messages: [],
     });
     
-    const roomRef = await roomsCollection.add(room);
+    const roomRef = await roomsCollection.add(room.toInterface());
     room.id = roomRef.id;
     roomRef.collection('messages').add(getWelcomeMessage());
 

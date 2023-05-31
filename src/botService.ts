@@ -88,16 +88,17 @@ export const botResponse = async (prompt: string, modelType: string): Promise<Me
 
 // A simple OARS algorithm to determine the model type based on the room message history
 function determineModelType(room: Room): string {
-  // If there are less than three messages, the bot should respond with a reflection
-  if(room.conversationMessages().length < 3){
+  // If there are less than two messages, the bot should respond with a reflection
+  if(room.conversationMessages().length < 2){
     return 'reflections';
   }
-  // Get the last three messages in the room, only those sent by the bot, messages are ordered desc
-  const lastThreeMessages: Message[] = room.conversationMessages().filter(message => message.userId.startsWith("CareBot")).slice(0, 3);
+  // Get the last 2 messages in the room, only those sent by the bot, messages are ordered desc
+  const lastMessages: Message[] = room.conversationMessages().filter(message => message.userId.startsWith("CareBot")).slice(0, 2);
   console.log("Last three counselor messages:");
-  console.log(lastThreeMessages);
+  console.log(lastMessages);
+  
   // If the messages are reflections, or are messing a meta.type, the bot should respond with a question
-  if(lastThreeMessages.every(message => message.meta?.type === 'reflections')){
+  if(lastMessages.every(message => message.meta?.type === 'reflections')){
     return 'questions';
   }
   

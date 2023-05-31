@@ -38,6 +38,19 @@ export class Room {
     this.lastClientMessage = room.lastClientMessage;
   }
 
+  // Method to return room as an IRoom interface
+  toInterface(): IRoom {
+    return {
+      id: this.id,
+      ownerId: this.ownerId,
+      botId: this.botId,
+      participantIds: this.participantIds,
+      createdAt: this.createdAt,
+      messages: this.messages,
+      lastClientMessage: this.lastClientMessage,
+    };
+  }
+
   // Method to retrieve messages that are not of userId "command-response"
   conversationMessages(): Message[] {
     return this.messages.filter(message => message.userId !== 'command-response');
